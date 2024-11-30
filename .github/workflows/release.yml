@@ -1,0 +1,57 @@
+name: Generate Release
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      # Fetches remote repository without --progress option.
+      #
+      # The default behavior of @actions/checkout outputs many noisy lines of
+      # status output in the workflow log, which is problematic for log size.
+      - name: Checkout latest repository commit
+        uses: actions/checkout@v4
+        with:
+          show-progress: false
+      # Generate Changelog notes and release info
+      - id: get-tag
+        name: Fetches latest release tag
+        shell: sh
+        run: |
+          LATEST_TAG="$(grep -m 1 -o '## \[.*\]' docs/CHANGELOG.md | awk -F'[][]' '{print $2}')"
+          echo "TAG=$LATEST_TAG" >> "$GITHUB_ENV"
+      # Runs EFI build pipeline using OCE-Build.
+      #
+      # Build **dist** directory containing **dist/EFI** and **dist/scripts**
+      # folders needed for downstream build tasks.
+      - id: oce-build
+        name: Run OCE-Build for all build targets
+        shell: pwsh
+        run: .\.github\scripts\run-builds.ps1
+        env:
+          TAG: ${{ env.TAG }}
+      # Generate Changelog notes and release info
+      - id: generate-notes
+        name: Generate Release Notes
+        shell: sh
+        run: |
+          BODY="$(sed -n "/## \[$TAG\]/,/## \[/p" docs/CHANGELOG.md | sed -e '1,2d;$d')"
+          echo "$BODY" > RELEASE_NOTES.txt
+        env:
+          TAG: ${{ env.TAG }}
+      # Publish release
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: v${{ env.TAG }}
+          tag_name: ${{ env.TAG }}
+          body_path: RELEASE_NOTES.txt
+          prerelease: true
+          files: |
+            EFI-${{ env.TAG }}-64-bit-DEBUG.zip
+            EFI-${{ env.TAG }}-64-bit-RELEASE.zip
+            EFI-${{ env.TAG }}-legacy-32-bit-DEBUG.zip
+            EFI-${{ env.TAG }}-legacy-32-bit-RELEASE.zip
+            EFI-${{ env.TAG }}-legacy-64-bit-DEBUG.zip
+            EFI-${{ env.TAG }}-legacy-64-bit-RELEASE.zip

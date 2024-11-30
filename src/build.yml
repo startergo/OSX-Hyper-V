@@ -1,0 +1,41 @@
+---
+version: latest
+build: DEBUG
+---
+ACPI:
+  SSDT-HV-DEV-WS2022: "ACPI/SSDT-HV-DEV-WS2022.dsl"
+  SSDT-HV-DEV: "ACPI/SSDT-HV-DEV.dsl"
+  SSDT-HV-VMBUS: "ACPI/SSDT-HV-VMBUS.dsl"
+  # This SSDT must be loaded after SSDT-HV-DEV
+  SSDT-HV-PLUG: "ACPI/SSDT-HV-PLUG.dsl"
+Drivers:
+  - HfsPlus
+@ifdef(RELEASE)
+  - OpenCanopy
+@endif
+  - OpenRuntime
+  - ResetNvramEntry
+Kexts:
+  Lilu: latest
+  VirtualSMC: latest
+  # Workaround for macOS 15 VM detection
+  # - This reroutes the hv_vmm_present handler to bypass new VMApple additions
+  #   added in Sequoia (often breaking iCloud services).
+  # - Tested on macOS 14 (Sonoma, 23.0.0+) and macOS 15 (Sequoia, 24.0.0+).
+  VMMHide:
+    specifier: Carnations-Botanica/VMHide=latest
+    properties:
+      MinKernel: "24.0.0"
+  # Core Hyper-V support kext for macOS 12.0 and newer.
+  MacHyperVSupportMonterey:
+    specifier: "*"
+    properties:
+      MinKernel: "21.0.0"
+  # Core Hyper-V support kext for macOS 10.4 to 11.0.
+  MacHyperVSupport:
+    specifier: latest
+    properties:
+      MaxKernel: "20.9.9"
+Tools:
+  # Also known as UEFIShell
+  - OpenShell
